@@ -26,8 +26,10 @@ type CandidatePair struct {
 	Local                    Candidate
 	bindingRequestCount      uint16
 	state                    CandidatePairState
+	incoming                 CandidatePairState
 	nominated                bool
 	nominateOnBindingSuccess bool
+	cnt                      int
 }
 
 func (p *CandidatePair) String() string {

@@ -486,15 +486,17 @@ func (a *Agent) connectivityChecks() {
 		updateInterval(a.disconnectedTimeout)
 		updateInterval(a.failedTimeout)
 
+		fmt.Println("reset interval", interval)
 		t.Reset(interval)
-
 		select {
 		case <-a.forceCandidateContact:
 			if !t.Stop() {
 				<-t.C
 			}
+			fmt.Println("force contact")
 			contact()
 		case <-t.C:
+			fmt.Println("periodic")
 			contact()
 		case <-a.done:
 			t.Stop()
@@ -571,6 +573,8 @@ func (a *Agent) pingAllCandidates() {
 		} else {
 			a.selector.PingCandidate(p.Local, p.Remote)
 			p.bindingRequestCount++
+			p.cnt++
+			fmt.Println("pinging", p.Local, p.Remote, p.cnt)
 		}
 	}
 }
@@ -818,7 +822,7 @@ func (a *Agent) addRemoteCandidate(c Candidate) {
 			}
 		}
 	}
-
+	fmt.Println("adding candidate remote")
 	a.requestConnectivityCheck()
 }
 
@@ -848,7 +852,7 @@ func (a *Agent) addCandidate(ctx context.Context, c Candidate, candidateConn net
 				a.addPair(c, remoteCandidate)
 			}
 		}
-
+		fmt.Println("adding candidate local")
 		a.requestConnectivityCheck()
 
 		a.chanCandidate <- c

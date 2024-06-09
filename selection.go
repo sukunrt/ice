@@ -4,6 +4,7 @@
 package ice
 
 import (
+	"fmt"
 	"net"
 	"time"
 
@@ -55,6 +56,7 @@ func (s *controllingSelector) ContactCandidates() {
 			s.agent.checkKeepalive()
 		}
 	case s.nominatedPair != nil:
+		fmt.Println("REFRESHING NOMINATION")
 		s.nominatePair(s.nominatedPair)
 	default:
 		p := s.agent.getBestValidCandidatePair()
@@ -62,6 +64,7 @@ func (s *controllingSelector) ContactCandidates() {
 			s.log.Tracef("Nominatable pair found, nominating (%s, %s)", p.Local, p.Remote)
 			p.nominated = true
 			s.nominatedPair = p
+			fmt.Println("NEW NOMINATION")
 			s.nominatePair(p)
 			return
 		}
@@ -86,7 +89,7 @@ func (s *controllingSelector) nominatePair(pair *CandidatePair) {
 		s.log.Error(err.Error())
 		return
 	}
-
+	fmt.Println("controlling: nomination", pair.cnt, pair.Local, pair.Remote)
 	s.log.Tracef("Ping STUN (nominate candidate pair) from %s to %s", pair.Local, pair.Remote)
 	s.agent.sendBindingRequest(msg, pair.Local, pair.Remote)
 }
@@ -100,6 +103,7 @@ func (s *controllingSelector) HandleBindingRequest(m *stun.Message, local, remot
 		s.agent.addPair(local, remote)
 		return
 	}
+	p.incoming = CandidatePairStateSucceeded
 
 	if p.state == CandidatePairStateSucceeded && s.nominatedPair == nil && s.agent.getSelectedPair() == nil {
 		bestPair := s.agent.getBestAvailableCandidatePair()
@@ -108,6 +112,7 @@ func (s *controllingSelector) HandleBindingRequest(m *stun.Message, local, remot
 		} else if bestPair.equal(p) && s.isNominatable(p.Local) && s.isNominatable(p.Remote) {
 			s.log.Tracef("The candidate (%s, %s) is the best candidate available, marking it as nominated", p.Local, p.Remote)
 			s.nominatedPair = p
+			fmt.Println("NEW NOMINATION")
 			s.nominatePair(p)
 		}
 	}
@@ -146,8 +151,20 @@ func (s *controllingSelector) HandleSuccessResponse(m *stun.Message, local, remo
 
 	p.state = CandidatePairStateSucceeded
 	s.log.Tracef("Found valid candidate pair: %s", p)
+	fmt.Println("SUCCESS: ", p.Local, p.Remote)
 	if pendingRequest.isUseCandidate && s.agent.getSelectedPair() == nil {
 		s.agent.setSelectedPair(p)
+	}
+	if p.incoming == CandidatePairStateSucceeded && s.nominatedPair == nil && s.agent.getSelectedPair() == nil {
+		bestPair := s.agent.getBestAvailableCandidatePair()
+		if bestPair == nil {
+			s.log.Tracef("No best pair available")
+		} else if bestPair.equal(p) && s.isNominatable(p.Local) && s.isNominatable(p.Remote) {
+			s.log.Tracef("The candidate (%s, %s) is the best candidate available, marking it as nominated", p.Local, p.Remote)
+			s.nominatedPair = p
+			fmt.Println("NEW NOMINATION")
+			s.nominatePair(p)
+		}
 	}
 }
 
